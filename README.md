@@ -2,7 +2,7 @@
 
 一个以学习记录为核心的Python/FastAPI练习项目，用于训练AI应用开发、接口自动化测试、SQLite持久化和Linux工程基础。
 
-项目从命令行JSON版本逐步演进为FastAPI + SQLite应用，目前已经具备记录管理、搜索、筛选、分页和自动化测试；DeepSeek学习总结服务已经完成基础封装和Mock测试，尚待接入HTTP接口。
+项目从命令行JSON版本逐步演进为FastAPI + SQLite应用，目前已经具备记录管理、搜索、筛选、分页和自动化测试；DeepSeek学习总结服务已经接入FastAPI接口，并具备空数据、模型超时、连接失败、状态错误和空响应处理。
 
 > 当前版本已完成学习记录CRUD、搜索、筛选、分页和AI总结服务基础封装。
 
@@ -19,8 +19,13 @@
 - 使用pytest和FastAPI TestClient进行接口测试。
 - 使用临时SQLite数据库隔离自动化测试。
 - 使用Mock验证AI总结逻辑，不在单元测试中调用真实DeepSeek API。
-- 在WSL/Linux环境完成依赖安装并通过21项测试。
+- 在WSL/Linux项目环境完成依赖安装并通过29项测试。
 - 在全新Linux虚拟环境中根据 `requirements.txt` 复现依赖，并再次通过21项测试。
+- 通过 `POST /summaries` 总结学习记录。
+- 通过 `POST /summaries/completed` 只总结已完成记录。
+- AI服务不可用时返回统一的503响应。
+- 使用Mock覆盖模型成功、超时和空响应路径，测试不访问真实付费API。
+
 
 ## 技术栈
 
@@ -29,7 +34,7 @@
 - Pydantic
 - SQLite
 - pytest
-- Starlette TestClient / httpx2
+- Starlette TestClient / httpx
 - OpenAI兼容SDK（调用DeepSeek）
 - python-dotenv
 - WSL2 / Ubuntu
@@ -44,12 +49,11 @@ study_project/
 ├── llm_client.py           大模型客户端封装
 ├── test_api.py             API集成测试
 ├── test_ai_service.py      AI服务单元测试和Mock测试
+├── test_llm_client.py      大模型客户端成功、超时和空响应测试
 ├── main.py                 早期命令行入口
 ├── record_service.py       早期JSON记录服务
 ├── requirements.txt        Linux环境依赖快照
-├── .env.example            环境变量示例
-├── LEARNING_PLAN.md        学习目标和阶段路线
-└── LEARNING_LOG.md         当前学习进度和下一步
+└── .env.example            环境变量示例
 ```
 
 ## Linux/WSL运行
@@ -81,7 +85,7 @@ python -m pytest -v
 当前已验证结果：
 
 ```text
-21 passed
+29 passed
 ```
 
 启动FastAPI开发服务器：
@@ -105,6 +109,8 @@ python -m uvicorn api:app --reload
 | GET | `/records/{record_id}` | 查询单条记录 |
 | PATCH | `/records/{record_id}` | 修改内容或完成状态 |
 | DELETE | `/records/{record_id}` | 删除记录 |
+| POST | `/summaries` | 总结最多100条学习记录 |
+| POST | `/summaries/completed` | 只总结最多100条已完成记录 |
 
 查询示例：
 
@@ -124,12 +130,15 @@ GET /records?q=FastAPI&completed=false&limit=10&offset=0
 - 输入校验：空内容、空关键词、过长关键词和非法分页参数。
 - 持久化：通过临时SQLite数据库验证接口行为。
 - AI服务：Prompt纯函数测试和DeepSeek Mock测试。
-- 回归目标：新增功能后保持现有21项测试通过。
+- AI接口：验证正常总结、已完成记录筛选、空记录和503响应。
+- AI客户端：使用Mock覆盖成功响应、请求超时和模型空响应。
+- 回归目标：新增功能后保持现有29项测试通过。
 
 ## 下一步路线
 
 1. 学习Linux文件、权限和进程基础。
 2. 学习Git并建立清晰提交历史。
-3. 将AI学习总结服务接入FastAPI接口。
-4. 增加大模型错误、超时和空响应测试。
-5. 完成部署、演示、PRD、测试材料和实习项目说明。
+3. 重新在WSL干净环境验证全部测试
+4. 完善接口文档和演示流程
+5. 部署应用
+6. 整理PRD、测试材料和实习项目描述

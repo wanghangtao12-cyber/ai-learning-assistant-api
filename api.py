@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, status,Query
 import database
 from pydantic import BaseModel, Field
+from ai_service import generate_summary
 
 class RecordCreate(BaseModel):  #职责:客户端创建记录时提交什么
     content: str = Field(min_length=1, max_length=200)
@@ -31,6 +32,11 @@ class RecordListResponse(BaseModel):  #职责:服务器返回多条记录时包�
 class DeleteRecordResponse(BaseModel): #职责:服务器返回删除记录时包含什么
     message: str
     record: RecordResponse
+
+class SummaryResponse(BaseModel):
+    total_records: int
+    summary: str
+
 
 app = FastAPI(title="AI学习助手 API")
 database.init_db()
@@ -107,16 +113,8 @@ def create_record_api(request: RecordCreate):
             detail="记录不能为空"
         )
 
-    # history = record_service.load_history()
-    # record = record_service.add_record(history,content)
-    # saved = record_service.save_history(history)
     record = database.insert_record(content)
 
-    # if not saved:
-    #     raise HTTPException(
-    #         status_code=500,
-    #         detail="记录保存失败"
-    #     )
 
     return record
 
@@ -125,8 +123,6 @@ def create_record_api(request: RecordCreate):
     response_model=RecordResponse
 )  #{record_id}是路径参数
 def get_record(record_id: str):
-    # history = record_service.load_history()
-    # record = record_service.find_record_by_id(history,record_id)
     record = database.get_record_by_id(record_id)
 
     if record is None:
@@ -141,8 +137,6 @@ def get_record(record_id: str):
     response_model=DeleteRecordResponse
 )
 def delete_record_api(record_id: str):
-    # history = record_service.load_history()
-    # delete_record = record_service.delete_record_by_id(history,record_id)
     delete_record = database.delete_record_by_id(record_id)
 
     if delete_record is None:
@@ -150,12 +144,6 @@ def delete_record_api(record_id: str):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="记录不存在"
         )
-
-    # if not record_service.save_history(history):
-    #     raise HTTPException(
-    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-    #         detail="删除记录但保存失败"
-    #     )
 
     return {
         "message": "记录删除成功",
@@ -186,31 +174,60 @@ def updated_record_api(record_id: str, request: RecordUpdate):
 
         updates["content"] = content
 
+    updated_response = database.update_record_by_id(record_id, updates)
 
-    # history = record_service.load_history()
-    # updated_record = record_service.update_record_by_id(history,
-    #                                                    record_id,
-    #                                                    updates)
-    updated_record = database.update_record_by_id(record_id,updates)
-
-    if updated_record is None:
+    if updated_response is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="记录不存在"
         )
 
-    # if not record_service.save_history(history):
-    #     raise HTTPException(
-    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-    #         detail="修改记录但保存失败"
-    #     )#数据库内部函数已经commit()
+    return updated_response
 
-    return updated_record
+def summarize_records(
+    records: list[dict],
+    empty_detail: str
+) -> dict:
+    if not records:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=empty_detail
+        )
+
+    contents = [
+        record["content"]
+        for record in records
+    ]
+
+    try:
+        summary = generate_summary(contents)
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI总结服务当前不可用",
+        ) from exc  # 使因果关系更明确
+
+    return {
+        "total_records": len(records),
+        "summary": summary
+    }
 
 
+@app.post(
+    "/summaries",
+    response_model=SummaryResponse
+)
+def create_summary_api():
+    records = database.list_records(limit=100)
 
+    return summarize_records(records, "没有可总结的学习记录")
 
+@app.post(
+    "/summaries/completed",
+    response_model=SummaryResponse
+)
+def completed_summary_api():
+    records = database.list_records(completed=True, limit=100)
 
-
-
+    return summarize_records(records, "没有已完成的学习记录")
 

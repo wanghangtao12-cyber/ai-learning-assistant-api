@@ -1,7 +1,12 @@
 import os
 
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import (
+    OpenAI,
+    APIConnectionError,
+    APITimeoutError,
+    APIStatusError,
+)
 
 load_dotenv()
 
@@ -23,26 +28,34 @@ def call_deepseek(prompt: str) -> str:
         api_key=api_key,
         base_url=base_url,
     )
-
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {
-                "role": "system",
-                "content": "你是一名严谨的学习教练。",
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "你是一名严谨的学习教练。",
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ],
+            stream=False,
+            extra_body={
+                "thinking": {
+                    "type": "disabled",
+                }
             },
-            {
-                "role": "user",
-                "content": prompt,
-            },
-        ],
-        stream=False,
-        extra_body={
-            "thinking": {
-                "type": "disabled",
-            }
-        },
-    )
+        )
+    except (
+        APIConnectionError,
+        APITimeoutError,
+        APIStatusError,
+    ) as exc:
+        raise RuntimeError(
+            "模型服务调用失败"
+        ) from exc
 
     content = response.choices[0].message.content
 

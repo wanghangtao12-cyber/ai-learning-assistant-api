@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 import database
 from api import app
-
+import api
 
 @pytest.fixture
 def client(tmp_path,monkeypatch):
@@ -359,4 +359,169 @@ def test_tc_search_002_return_empty_when_no_match(client):
     assert search_data["limit"] == 10
     assert search_data["offset"] == 0
 
+def test_create_summary_uses_records(client, monkeypatch):
+    create_response_1 = client.post(
+        "/records",
+        json={"content": "学习FastAPI"}
+    )
 
+    create_response_2 = client.post(
+        "/records",
+        json={"content": "学习Git"}
+    )
+    assert create_response_1.status_code == 201
+    assert create_response_2.status_code == 201
+
+
+    received_contents = []  # 作用是接收传入的参数
+
+    def fake_generate_summary(contents: list[str]):
+        received_contents.extend(contents)
+        return "模拟AI总结"
+
+    monkeypatch.setattr(
+        api,
+        "generate_summary",
+        fake_generate_summary
+    )
+
+    response = client.post("/summaries")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "total_records": 2,
+        "summary": "模拟AI总结"
+    }
+    assert set(received_contents) == {
+        "学习FastAPI",
+        "学习Git"
+    }
+
+def test_create_summary_rejects_empty_records(client, monkeypatch):
+    def fake_generate_summary(contents: list[str]):
+        raise AssertionError("空记录不应该调用AI")
+
+    monkeypatch.setattr(
+        api,
+        "generate_summary",
+        fake_generate_summary
+    )
+
+    response = client.post(
+        "/summaries"
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "没有可总结的学习记录"
+    }
+
+def test_completed_summary_uses_only_completed_records(client, monkeypatch):
+    create_contents = [
+        "学习FastAPI",
+        "学习Git",
+    ]
+
+    created_records = []
+
+    for content in create_contents:
+        response = client.post(
+            "/records",
+            json={"content": content}
+        )
+        assert response.status_code == 201
+        assert response.json()["completed"] is False
+
+        create_record = response.json()
+        created_records.append(create_record)
+
+    created_ids = [record["id"] for record in created_records]
+    first_id = created_ids[0]
+
+    update_records = client.patch(
+        f"/records/{first_id}",
+        json={"completed": True}
+    )
+
+    assert update_records.status_code == 200
+    assert update_records.json()["completed"] is True
+
+    received_contents = []
+    def fake_generate_summary(contents: list[str]):
+        received_contents.extend(contents)
+        return "模拟AI总结已完成的学习记录"
+
+    monkeypatch.setattr(
+        api,
+        "generate_summary",
+        fake_generate_summary
+    )
+
+    response = client.post("/summaries/completed")
+    assert response.status_code == 200
+    assert response.json() == {
+        "total_records": 1,
+        "summary": "模拟AI总结已完成的学习记录"
+    }
+    assert set(received_contents) == {
+        "学习FastAPI"
+    }
+
+
+def test_completed_summary_rejects_when_no_completed_records(client, monkeypatch):
+    create_record = client.post(
+        "/records",
+        json={
+            "content": "测试-未完成的学习任务",
+        }
+    )
+
+    assert create_record.status_code == 201
+    assert create_record.json()["completed"] is False
+
+    def fake_generate_summary(contents: list[str]):
+        raise AssertionError("没有已完成的学习任务不应该调用AI")
+
+    monkeypatch.setattr(
+        api,
+        "generate_summary",
+        fake_generate_summary
+    )
+
+    response = client.post(
+        "/summaries/completed"
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "没有已完成的学习记录"
+    }
+
+def test_create_summary_returns_503_when_ai_fails(
+    client,
+    monkeypatch
+):
+    create_response = client.post(
+        "/records",
+        json={
+            "content": "学习AI异常处理",
+        }
+    )
+
+    assert create_response.status_code == 201
+
+    def fake_generate_summary(contents: list[str]):
+        raise RuntimeError("模拟AI服务失败")
+
+    monkeypatch.setattr(
+        api,
+        "generate_summary",
+        fake_generate_summary
+    )
+
+    response = client.post("/summaries")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "AI总结服务当前不可用"
+    }
