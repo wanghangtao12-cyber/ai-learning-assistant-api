@@ -1,0 +1,35 @@
+# 密钥和本地配置
+.env
+
+# Python虚拟环境
+.venv/
+.venv-linux/
+venv/
+
+# Python缓存
+__pycache__/
+*.pyc
+
+# pytest缓存和临时目录
+.pytest_cache/
+.pytest_cache*/
+.pytest-cache-*/
+.pytest_tmp*/
+.pytest-tmp-*/
+
+# Codex生成的临时检查目录
+.codex_sheet_review/
+
+# IDE配置
+.idea/
+
+# 本地业务数据
+study.db
+history.json
+
+# 个人学习上下文
+AGENTS.md
+LEARNING_LOG.md
+LEARNING_PLAN.md
+
+测试用例.xlsx
