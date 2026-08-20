@@ -206,6 +206,35 @@ def test_filter_rejects_invalid_completed(client):
 
     assert response.status_code == 422
 
+def test_pagination_accepts_minimum_limit(client):
+    created_contents = [
+        "测试最小分页数据1",
+        "测试最小分页数据2"
+    ]
+
+    for content in created_contents:
+        create_response = client.post(
+            "/records",
+            json={"content": content}
+        )
+
+        assert create_response.status_code == 201
+        assert create_response.json()["content"] == content
+
+    response = client.get(
+        "/records",
+        params={
+            "limit": 1,
+            "offset": 0
+        }
+    )
+
+    assert response.status_code == 200
+    assert response.json()["limit"] == 1
+    assert response.json()["offset"] == 0
+    assert response.json()["count"] == 1
+    assert response.json()["total"] == 2
+    assert len(response.json()["items"]) == 1
 
 def test_list_records_pagination(client):
     created_ids = []
