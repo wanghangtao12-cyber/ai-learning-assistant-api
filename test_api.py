@@ -286,17 +286,35 @@ def test_list_records_pagination(client):
     assert page_three_data["limit"] == 4
     assert page_three_data["offset"] == 8
 
-
-def test_pagination_rejects_invalid_parameters(client):
-    invalid_urls = [
-        "/records?limit=0",
-        "/records?limit=101",
-        "/records?offset=-1",
+@pytest.mark.parametrize(
+    "url,expected_parameter,expected_type",
+    [
+        ("/records?limit=101", "limit", "less_than_equal"),
+        ("/records?limit=0", "limit", "greater_than_equal"),
+        ("/records?limit=abc", "limit", "int_parsing"),
+        ("/records?offset=-1", "offset", "greater_than_equal"),
+    ],
+    ids=[
+        "TC-RECORDS-LIMIT-002",
+        "TC-RECORDS-LIMIT-003",
+        "TC-RECORDS-LIMIT-004",
+        "TC-RECORDS-OFFSET-001",
     ]
+)
+def test_pagination_rejects_invalid_parameters(
+        client,
+        url,
+        expected_parameter,
+        expected_type
+):
+    response = client.get(url)
 
-    for url in invalid_urls:
-        response = client.get(url)
-        assert response.status_code == 422
+    response_data = response.json()
+    error = response_data["detail"][0]
+
+    assert response.status_code == 422
+    assert error["loc"] == ["query", expected_parameter]
+    assert error["type"] == expected_type
 
 def test_search_records_by_keywords(client):
     contents = [
