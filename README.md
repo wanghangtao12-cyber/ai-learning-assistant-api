@@ -19,7 +19,7 @@
 - 使用pytest和FastAPI TestClient进行接口测试。
 - 使用临时SQLite数据库隔离自动化测试。
 - 使用Mock验证AI总结逻辑，不在单元测试中调用真实DeepSeek API。
-- 在WSL和GitHub Actions的Ubuntu环境中完成依赖安装与自动化测试验证，最新回归测试为30项。
+- 在WSL和GitHub Actions的Ubuntu环境中完成依赖安装与自动化测试验证，最新回归测试为33项。
 - 已在全新Linux虚拟环境中根据 `requirements.txt` 复现依赖，验证依赖清单可用。
 - 通过 `POST /summaries` 总结学习记录。
 - 通过 `POST /summaries/completed` 只总结已完成记录。
@@ -85,7 +85,7 @@ python -m pytest -v
 当前已验证结果：
 
 ```text
-30 passed
+33 passed
 ```
 
 启动FastAPI开发服务器：
@@ -132,8 +132,8 @@ GET /records?q=FastAPI&completed=false&limit=10&offset=0
 - AI服务：Prompt纯函数测试和DeepSeek Mock测试。
 - AI接口：验证正常总结、已完成记录筛选、空记录和503响应。
 - AI客户端：使用Mock覆盖成功响应、请求超时和模型空响应。
-- 回归目标：新增功能后保持现有30项测试通过。
-- 持续集成：向 `main` 分支推送，或创建目标分支为 `main` 的Pull Request时，GitHub Actions会在Ubuntu和Python 3.14环境自动运行测试，当前验证结果为 `30 passed`。
+- 回归目标：新增功能后保持现有33项测试通过。
+- 持续集成：向 `main` 分支推送，或创建目标分支为 `main` 的Pull Request时，GitHub Actions会在Ubuntu和Python 3.14环境自动运行测试，当前验证结果为 `33 passed`。
 
 ## 项目路线图
 
