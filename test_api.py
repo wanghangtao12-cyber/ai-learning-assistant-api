@@ -236,6 +236,37 @@ def test_pagination_accepts_minimum_limit(client):
     assert response.json()["total"] == 2
     assert len(response.json()["items"]) == 1
 
+def test_pagination_accepts_max_limit(client):
+    created_contents = []
+
+    for index in range(101):
+        created_contents.append(f"测试最大分页数据{index + 1}")
+
+    for content in created_contents:
+        create_response = client.post(
+            "/records",
+            json={"content": content}
+        )
+
+        assert create_response.status_code == 201
+        assert create_response.json()["content"] == content
+
+    response = client.get(
+        "/records",
+        params={
+            "limit": 100,
+            "offset": 0
+        }
+    )
+
+    assert response.status_code == 200
+    assert response.json()["limit"] == 100
+    assert response.json()["offset"] == 0
+    assert response.json()["count"] == 100
+    assert response.json()["total"] == 101
+    assert len(response.json()["items"]) == 100
+
+
 def test_list_records_pagination(client):
     created_ids = []
 
